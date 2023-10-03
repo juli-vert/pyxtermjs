@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import argparse
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from flask_socketio import SocketIO
+import json
 import pty
 import os
 import subprocess
@@ -44,7 +45,7 @@ def read_and_forward_pty_output():
                 socketio.emit("pty-output", {"output": output}, namespace="/pty")
 
 
-@app.route("/")
+@app.route("/console")
 def index():
     return render_template("index.html")
 
@@ -66,10 +67,10 @@ def resize(data):
         set_winsize(app.config["fd"], data["rows"], data["cols"])
 
 
-@socketio.on("connect", namespace="/pty")
-def connect():
+@socketio.on("container", namespace="/pty")
+def connect(data):
     """new client connected"""
-    logging.info("new client connected")
+    logging.info(f"new client connected: {json.dumps(data)}")
     if app.config["child_pid"]:
         # already started child process, don't start another
         return
@@ -92,7 +93,7 @@ def connect():
         # but if they come before the background task never starts
         socketio.start_background_task(target=read_and_forward_pty_output)
 
-        logging.info("child pid is " + child_pid)
+        logging.info("child pid is " + str(child_pid))
         logging.info(
             f"starting background task with command `{cmd}` to continously read "
             "and forward pty output to client"
@@ -113,7 +114,7 @@ def main():
     )
     parser.add_argument(
         "--host",
-        default="127.0.0.1",
+        default="0.0.0.0",
         help="host to run server on (use 0.0.0.0 to allow access from other hosts)",
     )
     parser.add_argument("--debug", action="store_true", help="debug the server")
@@ -130,7 +131,8 @@ def main():
     if args.version:
         print(__version__)
         exit(0)
-    app.config["cmd"] = [args.command] + shlex.split(args.cmd_args)
+    #app.config["cmd"] = [args.command] + shlex.split(args.cmd_args)
+    app.config["cmd"] = ["docker", "exec", "-it", "pihole", "bash"]
     green = "\033[92m"
     end = "\033[0m"
     log_format = (

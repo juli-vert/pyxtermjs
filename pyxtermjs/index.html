@@ -24,8 +24,7 @@
     <div style="width: 100%; height: calc(100% - 50px)" id="terminal"></div>
 
     <p style="text-align: right; font-size: small">
-      built by <a href="https://chadsmith.dev">Chad Smith</a>
-      <a href="https://github.com/cs01">GitHub</a>
+      Based on <a href="https://github.com/cs01/pyxtermjs">pyxtermjs</a>
     </p>
     <!-- xterm -->
     <script src="https://unpkg.com/xterm@4.11.0/lib/xterm.js"></script>
@@ -64,16 +63,17 @@ ch.js"></script>
         socket.emit("pty-input", { input: data });
       });
 
-      const socket = io.connect("/pty");
+      const socket = io("/pty");
       const status = document.getElementById("status");
 
       socket.on("pty-output", function (data) {
         console.log("new output received from server:", data.output);
         term.write(data.output);
       });
-
+      let containerId = "pihole"
       socket.on("connect", () => {
         fitToscreen();
+        socket.emit('container', {container: containerId});
         status.innerHTML =
           '<span style="background-color: lightgreen;">connected</span>';
       });
