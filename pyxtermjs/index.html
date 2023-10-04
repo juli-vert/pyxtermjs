@@ -35,6 +35,22 @@ ch.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
 
     <script>
+      const getQueryVar = (variable) => {
+        const query = window.location.search.substring(1);
+        const vars = query.split("&");
+        for (let i = 0; i < vars.length; i++) {
+          const pair = vars[i].split("=");
+          if (pair[0] === variable) {
+            return pair[1];
+          }
+        }
+        return false;
+      }
+
+      let containerId = getQueryVar('cid');
+      if (!containerId) {
+        containerId = prompt('Container ID');
+      }
       const term = new Terminal({
         cursorBlink: true,
         macOptionIsMeta: true,
@@ -70,7 +86,7 @@ ch.js"></script>
         console.log("new output received from server:", data.output);
         term.write(data.output);
       });
-      let containerId = "pihole"
+
       socket.on("connect", () => {
         fitToscreen();
         socket.emit('container', {container: containerId});
