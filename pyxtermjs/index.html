@@ -51,6 +51,7 @@ ch.js"></script>
       if (!containerId) {
         containerId = prompt('Container ID');
       }
+
       const term = new Terminal({
         cursorBlink: true,
         macOptionIsMeta: true,
@@ -89,7 +90,7 @@ ch.js"></script>
 
       socket.on("connect", () => {
         fitToscreen();
-        socket.emit('container', {container: containerId});
+        socket.emit('container', { container: containerId });
         status.innerHTML =
           '<span style="background-color: lightgreen;">connected</span>';
       });
