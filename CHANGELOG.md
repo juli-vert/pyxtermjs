@@ -1,3 +1,7 @@
+## 0.6.0.1
+
+- support multiple clients and docker in docker
+
 ## 0.5.0.2
 
 - support copy and paste in terminal (#27)

@@ -3,6 +3,15 @@ A fully functional terminal in your browser.
 
 ![screenshot](https://github.com/cs01/pyxterm.js/raw/master/pyxtermjs.gif)
 
+## Customization
+
+This customization is to be able to run docker interactive consoles for any running container. In addition to fix the command to **docker exec -it**, this version allows running multiple clients, hence several consoles to different containers can be run simultaneously.
+
+### How to use the docker console
+
+Build the docker container using the provided Dockefile
+Remember to run the container passing the host docker socket to pyxtermjs container `(-v //var/run/docker.sock:/var/run/docker.sock)` to be able to run the host docker daemon inside it.
+
 ## How does this work?
 
 On the backend:
