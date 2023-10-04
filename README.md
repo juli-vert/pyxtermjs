@@ -9,7 +9,7 @@ This customization is to be able to run docker interactive consoles for any runn
 
 ### How to use the docker console
 
-Build the docker container using the provided Dockefile
+Build the docker container using the provided Dockefile  
 Remember to run the container passing the host docker socket to pyxtermjs container `(-v //var/run/docker.sock:/var/run/docker.sock)` to be able to run the host docker daemon inside it.
 
 ## How does this work?
