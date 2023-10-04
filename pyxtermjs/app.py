@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import argparse
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from flask_socketio import SocketIO
+import json
 import pty
 import os
 import subprocess
@@ -21,6 +22,8 @@ app = Flask(__name__, template_folder=".", static_folder=".", static_url_path=""
 app.config["SECRET_KEY"] = "secret!"
 app.config["fd"] = None
 app.config["child_pid"] = None
+app.config['container'] = ""
+app.config['consoles'] = []
 socketio = SocketIO(app)
 
 
@@ -44,7 +47,7 @@ def read_and_forward_pty_output():
                 socketio.emit("pty-output", {"output": output}, namespace="/pty")
 
 
-@app.route("/")
+@app.route("/console")
 def index():
     return render_template("index.html")
 
@@ -66,21 +69,26 @@ def resize(data):
         set_winsize(app.config["fd"], data["rows"], data["cols"])
 
 
-@socketio.on("connect", namespace="/pty")
-def connect():
+@socketio.on("container", namespace="/pty")
+def connect(data):
     """new client connected"""
-    logging.info("new client connected")
+    logging.info(f"new client connected: {json.dumps(data)}")
     if app.config["child_pid"]:
         # already started child process, don't start another
         return
 
     # create child process attached to a pty we can read from and write to
     (child_pid, fd) = pty.fork()
+    logging.info(f"New child process created: {child_pid}")
     if child_pid == 0:
         # this is the child process fork.
         # anything printed here will show up in the pty, including the output
         # of this subprocess
-        subprocess.run(app.config["cmd"])
+        app.config['container'] = data['container']
+        spcmd = app.config["cmd"]
+        spcmd.append(app.config['container'])
+        spcmd.append(app.config['prompt'])
+        subprocess.run(spcmd)
     else:
         # this is the parent process fork.
         # store child fd and pid
@@ -88,11 +96,12 @@ def connect():
         app.config["child_pid"] = child_pid
         set_winsize(fd, 50, 50)
         cmd = " ".join(shlex.quote(c) for c in app.config["cmd"])
+        cmd = f"{cmd} {data['container']} {app.config['prompt']}"
         # logging/print statements must go after this because... I have no idea why
         # but if they come before the background task never starts
         socketio.start_background_task(target=read_and_forward_pty_output)
 
-        logging.info("child pid is " + child_pid)
+        logging.info("child pid is " + str(child_pid))
         logging.info(
             f"starting background task with command `{cmd}` to continously read "
             "and forward pty output to client"
@@ -101,36 +110,9 @@ def connect():
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description=(
-            "A fully functional terminal in your browser. "
-            "https://github.com/cs01/pyxterm.js"
-        ),
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    parser.add_argument(
-        "-p", "--port", default=5000, help="port to run server on", type=int
-    )
-    parser.add_argument(
-        "--host",
-        default="127.0.0.1",
-        help="host to run server on (use 0.0.0.0 to allow access from other hosts)",
-    )
-    parser.add_argument("--debug", action="store_true", help="debug the server")
-    parser.add_argument("--version", action="store_true", help="print version and exit")
-    parser.add_argument(
-        "--command", default="bash", help="Command to run in the terminal"
-    )
-    parser.add_argument(
-        "--cmd-args",
-        default="",
-        help="arguments to pass to command (i.e. --cmd-args='arg1 arg2 --flag')",
-    )
-    args = parser.parse_args()
-    if args.version:
-        print(__version__)
-        exit(0)
-    app.config["cmd"] = [args.command] + shlex.split(args.cmd_args)
+    
+    app.config["cmd"] = ["docker", "exec", "-it"]
+    app.config["prompt"] = "bash"
     green = "\033[92m"
     end = "\033[0m"
     log_format = (
@@ -142,10 +124,10 @@ def main():
     logging.basicConfig(
         format=log_format,
         stream=sys.stdout,
-        level=logging.DEBUG if args.debug else logging.INFO,
+        level=logging.INFO,
     )
-    logging.info(f"serving on http://{args.host}:{args.port}")
-    socketio.run(app, debug=args.debug, port=args.port, host=args.host)
+    logging.info(f"serving on http://0.0.0.0:5000")
+    socketio.run(app, debug=False, port=5000, host="0.0.0.0")
 
 
 if __name__ == "__main__":
